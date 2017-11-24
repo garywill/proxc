@@ -1,0 +1,68 @@
+#!/bin/bash
+
+TMPPATH="/dev/shm/"
+TMPFILE="$TMPPATH/proxc-$RANDOM.conf"
+PROXYCHAINS_BIN="proxychains4"
+
+
+echo "proxy type is: $1  ( proxy types: http, socks4, socks5 )"
+echo proxy ip is: $2
+echo proxy port is: $3
+echo proxychains binary is: $PROXYCHAINS_BIN
+echo ""
+
+if [ ! $3  ] ; then
+    echo No enough arguments!
+    exit 1
+fi
+
+
+cd "$TMPPATH"
+cat << EOF > "$TMPFILE"
+
+# proxychains.conf  VER 4.x
+strict_chain
+proxy_dns 
+# set the class A subnet number to use for the internal remote DNS mapping
+# we use the reserved 224.x.x.x range by default,
+# if the proxified app does a DNS request, we will return an IP from that range.
+# on further accesses to this ip we will send the saved DNS name to the proxy.
+# in case some control-freak app checks the returned ip, and denies to 
+# connect, you can use another subnet, e.g. 10.x.x.x or 127.x.x.x.
+# of course you should make sure that the proxified app does not need
+# *real* access to this subnet. 
+# i.e. dont use the same subnet then in the localnet section
+#remote_dns_subnet 127 
+#remote_dns_subnet 10
+remote_dns_subnet 224
+# Some timeouts in milliseconds
+tcp_read_time_out 15000
+tcp_connect_time_out 8000
+
+## RFC5735 Loopback address range
+## if you enable this, you have to make sure remote_dns_subnet is not 127
+## you'll need to enable it if you want to use an application that 
+## connects to localhost.
+# localnet 127.0.0.0/255.0.0.0
+
+## RFC1918 Private Address Ranges
+# localnet 10.0.0.0/255.0.0.0
+# localnet 172.16.0.0/255.240.0.0
+# localnet 192.168.0.0/255.255.0.0
+
+[ProxyList]
+
+# defaults set to "tor"
+$1 $2 $3
+
+EOF
+
+shift 3
+echo "Executing with proxy command: $@"
+echo ""
+
+"$PROXYCHAINS_BIN" -f "$TMPFILE" $@
+
+echo ""
+echo "...proxychains process finished."
+rm -v "$TMPFILE"
