@@ -3,8 +3,8 @@ Execute command with `proxychains` applied without having to edit `proxychains.c
 
 Useful when you just want to run some app behind a single proxy.
 
-It automatically generates a `proxychains.conf` in temporary path.
+It generates and uses a `proxychains.conf` in memory.
 
 ## Usage
 
-    proxc proxytype proxyip proxyport commands
+    proxc socks5|socks4|http <proxy_ip> <proxy_port> <command and args>
