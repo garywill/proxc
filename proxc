@@ -1,5 +1,24 @@
 #!/bin/bash
 
+usage() {
+###############################################################################
+    cat << EOF
+Usage: $PROGNAME [options] [-d <dns-ip>] [-p <proxy-type> <ip> <port>] -c <command>
+
+    -h, --help              Show this help
+
+    -c <command>            Command to run
+    
+    -p <proxy-type> <ip> <port>
+                            Use proxychains to make processes use proxy
+    -d <dns-ip>             Tell processes what DNS to see in /etc/resolv.conf
+                            (using bubblewrap). Usually not necessary when '-p'
+                            is used.
+                            
+    -q                      Quiet mode. Don't display any debug infomation
+EOF
+}
+
 get_fd() {
     local x
     local tmpfile
@@ -17,26 +36,73 @@ get_fd() {
     echo 0
 }
 
-get_fd conffile
 
-PROXYCHAINS_BIN="proxychains4"
+[[ ! "$1" ]] && usage && exit 0
+while [[ -n "$1" ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -c)
+            shift
+            for i in "$@"
+            do
+                [[ "$i" =~ " " || "$i" =~ '\' ]] && i="\"$i\""
+                #echo $i
+                CMD="$CMD $i"
+            done
+            break
+            ;;
+        -p)
+            shift
+            PROXY_TYPE="$1"
+            shift
+            PROXY_IP="$1"
+            shift
+            PROXY_PORT="$1"
+            shift
+            ;;
+        -d)
+            shift
+            DNS_IP="$1"
+            shift
+            ;;
+        -q)
+            shift
+            QUIET_MODE=1
+            ;;
+        *)
+            echo  "Invalid parameter: $1" 1>&2
+            exit 1
+            ;;
+    esac
+done
 
-if [[ "$1" == "-q" ]]; then
-    shift
-    QUIET="-q"
-else
-    echo "Use proxy ${1}://${2}:${3}"
-    echo ""
-fi
-
-if [ ! $3  ] ; then
-    echo No enough arguments!
+if [ ! "$CMD"  ] ; then
+    echo "Command not specified"
     exit 1
 fi
 
+################################################
 
-#cd "$TMPPATH"
-cat << EOF >&$conffile
+if [[ ! $QUIET_MODE ]]; then
+    echo "Apply proxy to command: $CMD"
+    echo ""
+fi
+
+if [[ "$PROXY_IP" ]]; then
+    PROXYCHAINS_BIN="proxychains4"
+    if [[ $QUIET_MODE -eq 1 ]]; then
+        shift
+        PROXYCHAINS_QUIET="-q"
+    else
+        echo "Use proxy ${PROXY_TYPE}://${PROXY_IP}:${PROXY_PORT}"
+        echo ""
+    fi
+    
+    get_fd conffile
+    cat << EOF >&$conffile
 
 # proxychains.conf  VER 4.x
 strict_chain
@@ -54,22 +120,26 @@ localnet 127.0.0.0/255.0.0.0
 # localnet 192.168.0.0/255.255.0.0
 
 [ProxyList]
-$1 $2 $3
+$PROXY_TYPE $PROXY_IP $PROXY_PORT
 
 EOF
 
-shift 3
-if [[ ! $QUIET ]]; then
-    echo "Apply proxy to command: $@"
-    echo ""
+    PROXYCHAINS_WHOLE="\"$PROXYCHAINS_BIN\" $PROXYCHAINS_QUIET -f /dev/fd/$conffile"
 fi
 
-"$PROXYCHAINS_BIN" $QUIET -f /dev/fd/$conffile $@
+if [[ "$DNS_IP" ]]; then
+    if [[ ! $QUIET_MODE ]]; then
+        echo "Set DNS: $DNS_IP"
+        echo ""
+    fi
+    get_fd dnsconf
+    echo "nameserver $DNS_IP" > "/dev/fd/$dnsconf"
+    BWRAP_WHOLE="bwrap --dev-bind / / --ro-bind-data $dnsconf /etc/resolv.conf --tmpfs /var/run/nscd/"
+fi
+
+
+$BWRAP_WHOLE sh -c "$PROXYCHAINS_WHOLE $CMD"
+
 result=$?
-
-if [[ ! $QUIET ]]; then
-    echo ""
-    echo "...proxychains process finished."
-fi
 
 exit $result
