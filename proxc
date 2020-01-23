@@ -12,8 +12,8 @@ Usage: $PROGNAME [options] [-d <dns-ip>] [-p <proxy-type> <ip> <port>] -c <comma
     -p <proxy-type> <ip> <port>
                             Use proxychains to make processes use proxy
     -d <dns-ip>             Tell processes what DNS to see in /etc/resolv.conf
-                            (using bubblewrap). Usually not necessary when '-p'
-                            is used.
+                            (using bubblewrap). Can be used more than once.
+                            Usually not necessary when '-p' is used.
                             
     -q                      Quiet mode. Don't display any debug infomation
 EOF
@@ -36,6 +36,7 @@ get_fd() {
     echo 0
 }
 
+DNS_IP=()
 
 [[ ! "$1" ]] && usage && exit 0
 while [[ -n "$1" ]]; do
@@ -65,7 +66,7 @@ while [[ -n "$1" ]]; do
             ;;
         -d)
             shift
-            DNS_IP="$1"
+            DNS_IP+=("$1")
             shift
             ;;
         -q)
@@ -127,14 +128,19 @@ EOF
     PROXYCHAINS_WHOLE="\"$PROXYCHAINS_BIN\" $PROXYCHAINS_QUIET -f /dev/fd/$conffile"
 fi
 
-if [[ "$DNS_IP" ]]; then
-    if [[ ! $QUIET_MODE ]]; then
-        echo "Set DNS: $DNS_IP"
-        echo ""
-    fi
+if [[ ${#DNS_IP[@]} -gt 0 ]]; then
+    echo -n "Set DNS:"
     get_fd dnsconf
-    echo "nameserver $DNS_IP" > "/dev/fd/$dnsconf"
-    BWRAP_WHOLE="bwrap --dev-bind / / --ro-bind-data $dnsconf /etc/resolv.conf --tmpfs /var/run/nscd/"
+    for (( i=0;i<${#DNS_IP[@]};i++ )); do
+        if [[ ! $QUIET_MODE ]]; then
+            echo -n " ${DNS_IP[$i]}"
+        fi
+        
+        echo "nameserver ${DNS_IP[$i]}" >> "/dev/fd/$dnsconf"        
+    done
+    echo ""
+    BWRAP_WHOLE="bwrap --dev-bind / / --ro-bind-data $dnsconf $(readlink -m /etc/resolv.conf) --tmpfs $(readlink -m /var/run/nscd/)"
+
 fi
 
 
