@@ -3,18 +3,20 @@
 usage() {
 ###############################################################################
     cat << EOF
-Usage: $PROGNAME [options] [-d <dns-ip>] [-p <proxy-type> <ip> <port>] -c <command>
+Usage: $PROGNAME [options] [-d <dns-ip>] [-p <proxy-type> <ip> <port>] -c <command and args>
 
     -h, --help              Show this help
 
     -c <command>            Command to run
     
-    -p <proxy-type> <ip> <port>
-                            Use proxychains to make processes use proxy
     -d <dns-ip>             Tell processes what DNS to see in /etc/resolv.conf
                             (using bubblewrap). Can be used more than once.
                             Usually not necessary when '-p' is used.
-                            
+
+    -p <proxy-type> <ip> <port>
+                            Use proxychains to make processes use proxy.
+                            proxy-type can be socks5,socks4,http
+
     -q                      Quiet mode. Don't display any debug infomation
 EOF
 }
