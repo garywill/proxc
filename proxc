@@ -93,7 +93,9 @@ if [[ ! $QUIET_MODE ]]; then
 fi
 
 if [[ ${#DNS_IP[@]} -gt 0 ]]; then
-    echo -n "Set DNS:"
+    if [[ ! $QUIET_MODE ]]; then
+        echo -n "Set DNS:"
+    fi
     get_fd dnsconf
     for (( i=0;i<${#DNS_IP[@]};i++ )); do
         if [[ ! $QUIET_MODE ]]; then
