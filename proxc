@@ -92,6 +92,14 @@ if [[ ! $QUIET_MODE ]]; then
     echo ""
 fi
 
+################################
+
+get_fd initscript_fd
+
+
+
+bwrap_args=()
+
 if [[ ${#DNS_IP[@]} -gt 0 ]]; then
     if [[ ! $QUIET_MODE ]]; then
         echo -n "Set DNS:"
@@ -105,7 +113,22 @@ if [[ ${#DNS_IP[@]} -gt 0 ]]; then
         echo "nameserver ${DNS_IP[$i]}" >> "/dev/fd/$dnsconf"
     done
     echo ""
-    BWRAP_WHOLE="bwrap --dev-bind / / --ro-bind-data $dnsconf $(readlink -m /etc/resolv.conf) --tmpfs $(readlink -m /var/run/nscd/)"
+    bwrap_args+=(
+        --dev-bind / /
+
+        --overlay-src /etc
+        --tmp-overlay /etc
+
+        --tmpfs $(readlink -m /var/run/nscd/)
+
+        --
+    )
+    cat << EOF >> /dev/fd/$initscript_fd
+        rm /etc/resolv.conf
+        cat /dev/fd/$dnsconf > /etc/resolv.conf
+
+EOF
+    BWRAP_WHOLE="bwrap ${bwrap_args[@]}"
 
 fi
 
@@ -149,7 +172,7 @@ fi
 
 
 
-$BWRAP_WHOLE sh -c "$PROXYCHAINS_WHOLE $CMD"
+$BWRAP_WHOLE sh -c "sh /dev/fd/$initscript_fd && $PROXYCHAINS_WHOLE $CMD"
 
 result=$?
 
