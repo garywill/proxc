@@ -15,15 +15,7 @@ It uses bubblewrap to create a mount namespace, in which processes see the DNS y
 
 It bans in the namespace `/var/run/nscd` so processes can't use system's DNS cache
 
-> **Notice:** If network status change, NetworkManager or other program may delete `/etc/resolv.conf` and create a new one. That makes bubblewrap's file binding lost, causing DNS fallback to original system's DNS
-> 
-> So, not suitable for long-time running. If you want long-time running, it's recommend to use static DNS configuration using the following variables in the `/etc/sysconfig/network/config`:
-> 
-> -  `NETCONFIG_DNS_STATIC_SEARCHLIST` 
-> - `NETCONFIG_DNS_STATIC_SERVERS` 
-> - `NETCONFIG_DNS_FORWARDER` 
-> 
-> or disable DNS configuration updates via netconfig by setting: `NETCONFIG_DNS_POLICY=''`
+> Now it requires bubblewrap >= 0.11.0 . If you're using older bubblewrap, please use old proxc 1.0
 
 ## Configure proxy for Linux command execution
 
