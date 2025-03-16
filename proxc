@@ -88,7 +88,7 @@ fi
 ################################################
 
 if [[ ! $QUIET_MODE ]]; then
-    echo "Apply proxy to command: $CMD"
+    echo "Apply DNS/proxy to command: $CMD"
     echo ""
 fi
 
